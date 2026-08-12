@@ -32,8 +32,7 @@ No manual steps needed. Just click and wait. Keep the window open while it runs.
 | 🖨 **Print button** | Print any received image/PDF/text directly from admin panel. |
 | 📱 **Sender info display** | Each file shows device, OS, browser, IP address, and timestamp. |
 | ⚡ **Vaibhav Files Transfer branding** | Name shown on admin panel, upload page, login page. |
-| 🌐 **Works from ANY network** | Deployed on Render → permanent public URL. Senders on mobile data / different Wi-Fi / any internet can upload. |
-| 📱 **ONE permanent QR code** | Never changes. Always points to your deployed domain. |
+| 🌐 **Works from ANY network** | Deployed on Render → permanent public URL. Senders on mobile data / different Wi-Fi / any internet can upload. 
 | 🔔 **Real-time notifications** | WebSocket (Socket.IO) → instant sound + flash + badge when a file arrives. |
 | 📦 **Chunked upload + resume** | 4 MB chunks. If a chunk fails, tap Retry and it resumes from where it stopped. |
 | 📁 **Folder upload** | Pick a whole folder and upload every file inside it. |
@@ -188,4 +187,4 @@ If not set, the app uses local JSON files (always works).
 
 ## 📜 License
 
-MIT — free to use, modify, and share. Made with ❤️ for Vaibhav.
+MIT — free to use, modify, and share.  Vaibhav.
