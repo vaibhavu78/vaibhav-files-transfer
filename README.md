@@ -80,11 +80,11 @@ Vaibhav Files Transfer/
 
 ## 🌐 Free 24/7 Deployment Options
 
-### Option A — Render.com (recommended, free, permanent URL)
+### Option A —
 
 1. Run `RUN.bat` → enter your GitHub repo URL → files upload to GitHub
    (or manually create a GitHub repo and push these files)
-2. Go to **[render.com](https://render.com)** → Sign up with GitHub (free)
+2. Go to **[                                                         )** → Sign up with GitHub (free)
 3. **New +** → **Web Service** → select your GitHub repo
 4. Settings:
    - **Name:** `vaibhav-files-transfer`
