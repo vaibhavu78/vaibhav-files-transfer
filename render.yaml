@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: vaibhav-files-transfer
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python render_start.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PERMANENT_DOMAIN
+        # After first deploy, Render gives you a URL like:
+        #   https://vaibhav-files-transfer-xxxx.onrender.com
+        # Set this env var to that exact URL (WITH https://, NO trailing slash)
+        # so the QR code + admin panel use the permanent domain.
+        sync: false
+      - key: ADMIN_PASSWORD
+        # Admin panel password. Default is "radha".
+        # Change this to any password you want for the admin panel.
+        # The sender upload page (QR scan page) stays public - no password needed.
+        value: radha
+        sync: false
+      - key: ADMIN_ACCESS_KEY
+        # Optional EXTRA secret (in addition to password) for the admin panel.
+        # Leave blank to use password-only. Set to a long random string for
+        # extra security on the public domain.
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true

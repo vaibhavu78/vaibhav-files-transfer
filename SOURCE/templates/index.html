@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0f172a" />
+<title>Vaibhav Files Transfer</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:rgba(255,255,255,0.06);
+    --card-border:rgba(255,255,255,0.12);
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --accent:#6366f1;
+    --accent2:#8b5cf6;
+    --ok:#22c55e;
+    --err:#ef4444;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    overflow-x:hidden;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:24px 16px;
+    position:relative;
+  }
+
+  /* ---------- 3D animated background ---------- */
+  #bg{
+    position:fixed;
+    inset:0;
+    z-index:-2;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(99,102,241,0.25), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(139,92,246,0.25), transparent 40%),
+      linear-gradient(135deg,#0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    perspective:1000px;
+    overflow:hidden;
+  }
+  #bg .cube{
+    position:absolute;
+    transform-style:preserve-3d;
+    animation:floaty 16s linear infinite;
+    opacity:0.55;
+  }
+  @keyframes floaty{
+    0%   {transform:translateY(0) translateX(0) rotateX(0deg) rotateY(0deg)}
+    50%  {transform:translateY(-40px) translateX(20px) rotateX(180deg) rotateY(180deg)}
+    100% {transform:translateY(0) translateX(0) rotateX(360deg) rotateY(360deg)}
+  }
+  #bg .cube .face{
+    position:absolute;
+    width:60px;height:60px;
+    border:1px solid rgba(139,92,246,0.5);
+    background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(139,92,246,0.12));
+    backdrop-filter:blur(2px);
+  }
+  #bg .cube .f1{transform:rotateY(0deg) translateZ(30px)}
+  #bg .cube .f2{transform:rotateY(90deg) translateZ(30px)}
+  #bg .cube .f3{transform:rotateY(180deg) translateZ(30px)}
+  #bg .cube .f4{transform:rotateY(-90deg) translateZ(30px)}
+  #bg .cube .f5{transform:rotateX(90deg) translateZ(30px)}
+  #bg .cube .f6{transform:rotateX(-90deg) translateZ(30px)}
+
+  #bg .orb{
+    position:absolute;
+    border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, rgba(165,180,252,0.9), rgba(99,102,241,0.2));
+    filter:blur(1px);
+    animation:drift 22s ease-in-out infinite;
+  }
+  @keyframes drift{
+    0%,100%{transform:translate(0,0) scale(1)}
+    33%{transform:translate(40px,-30px) scale(1.15)}
+    66%{transform:translate(-30px,25px) scale(0.9)}
+  }
+
+  .wrap{width:100%;max-width:460px;position:relative;z-index:1;
+    opacity:0;transform:translateY(14px);animation:pageIn .6s ease forwards}
+  @keyframes pageIn{to{opacity:1;transform:translateY(0)}}
+  .title{
+    text-align:center;margin:0 0 6px;font-size:22px;font-weight:700;letter-spacing:0.5px;
+    background:linear-gradient(90deg,#a5b4fc,#c4b5fd,#f0abfc);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  .subtitle{text-align:center;color:var(--muted);font-size:13px;margin:0 0 22px}
+
+  .card{
+    background:var(--card);border:1px solid var(--card-border);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-radius:22px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+
+  .dropzone{
+    border:2px dashed rgba(165,180,252,0.45);border-radius:18px;padding:34px 18px;
+    text-align:center;cursor:pointer;transition:all .25s ease;background:rgba(255,255,255,0.03);
+  }
+  .dropzone:hover,.dropzone.drag{
+    border-color:var(--accent2);background:rgba(139,92,246,0.12);transform:translateY(-2px);
+  }
+  .dz-icon{
+    width:54px;height:54px;margin:0 auto 12px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 8px 24px rgba(99,102,241,0.5);
+    transition:transform .3s;
+  }
+  .dropzone:hover .dz-icon{transform:translateY(-3px) scale(1.06)}
+  .dz-icon svg{width:26px;height:26px;stroke:#fff}
+  .dz-text{font-size:15px;font-weight:600}
+  .dz-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+  /* upload modes */
+  .mode-row{display:flex;gap:8px;margin-top:14px}
+  .mode-btn{flex:1;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.35);
+    color:#c7d2fe;padding:10px;border-radius:12px;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s}
+  .mode-btn:hover{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;transform:translateY(-2px)}
+
+  #fileInput,#folderInput{display:none}
+
+  .filelist{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+  .file{
+    background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px;padding:12px 14px;animation:fileIn .35s ease;
+  }
+  @keyframes fileIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .file .row1{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .file .name{font-size:13px;font-weight:600;word-break:break-all;flex:1;display:flex;align-items:center;gap:6px}
+  .file .pct{font-size:12px;color:var(--muted);white-space:nowrap}
+  .file .bar{margin-top:8px;height:8px;border-radius:8px;background:rgba(255,255,255,0.1);overflow:hidden;position:relative}
+  .file .fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    border-radius:8px;transition:width .2s ease;position:relative;overflow:hidden}
+  .file .fill::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+    transform:translateX(-100%);animation:shimmer 1.4s infinite}
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+  .file .status{margin-top:6px;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px}
+  .file.done .status{color:var(--ok)}
+  .file.err .status{color:var(--err)}
+  .file .size{font-size:11px;color:var(--muted)}
+  .file .retry-btn{margin-top:8px;background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.5);
+    color:#fbbf24;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:11px;display:none}
+  .file.err .retry-btn{display:inline-block}
+
+  .footer-note{text-align:center;color:var(--muted);font-size:11px;margin-top:18px}
+
+  /* success checkmark animation */
+  .check{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--ok);
+    position:relative;animation:checkPop .4s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes checkPop{0%{transform:scale(0)}100%{transform:scale(1)}}
+  .check::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+    border:solid #0f172a;border-width:0 2px 2px 0;transform:rotate(45deg)}
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+
+<div class="wrap">
+  <h1 class="title">Send Files</h1>
+  <p class="subtitle">Drag, drop, or tap to choose — any size, any format</p>
+
+  <div class="card">
+    <div class="dropzone" id="dropzone">
+      <div class="dz-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/>
+        </svg>
+      </div>
+      <div class="dz-text">Tap or Drop files here</div>
+      <div class="dz-sub">Unlimited size • All formats supported</div>
+      <input type="file" id="fileInput" multiple />
+    </div>
+
+    <div class="mode-row">
+      <button class="mode-btn" onclick="pickFiles()">📄 Pick Files</button>
+      <button class="mode-btn" onclick="pickFolder()">📁 Pick Folder</button>
+    </div>
+    <input type="file" id="folderInput" webkitdirectory multiple style="display:none" />
+
+    <div class="filelist" id="filelist"></div>
+  </div>
+
+  <div class="footer-note">⚡ Vaibhav Files Transfer — Works from any network (Wi-Fi, mobile data, anywhere)</div>
+</div>
+
+<script>
+/* ---------- 3D animated cubes + orbs ---------- */
+(function buildBg(){
+  const bg=document.getElementById('bg');
+  const N=7;
+  for(let i=0;i<N;i++){
+    const c=document.createElement('div');
+    c.className='cube';
+    c.style.left=Math.random()*90+'%';
+    c.style.top=Math.random()*90+'%';
+    c.style.animationDuration=(10+Math.random()*14)+'s';
+    c.style.animationDelay=(-Math.random()*12)+'s';
+    const scale=0.6+Math.random()*1.1;
+    c.style.transform='scale('+scale+')';
+    for(let f=1;f<=6;f++){
+      const face=document.createElement('div');
+      face.className='face f'+f;
+      c.appendChild(face);
+    }
+    bg.appendChild(c);
+  }
+  for(let i=0;i<10;i++){
+    const o=document.createElement('div');
+    o.className='orb';
+    const sz=4+Math.random()*10;
+    o.style.width=sz+'px';o.style.height=sz+'px';
+    o.style.left=Math.random()*100+'%';
+    o.style.top=Math.random()*100+'%';
+    o.style.animationDuration=(12+Math.random()*18)+'s';
+    o.style.animationDelay=(-Math.random()*10)+'s';
+    o.style.opacity=0.25+Math.random()*0.4;
+    bg.appendChild(o);
+  }
+})();
+
+/* ---------- chunked uploader with resume + speed + ETA ---------- */
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB
+const list=document.getElementById('filelist');
+const input=document.getElementById('fileInput');
+const folderInput=document.getElementById('folderInput');
+const dz=document.getElementById('dropzone');
+
+function humanSize(b){
+  const u=['B','KB','MB','GB','TB'];let i=0;
+  while(b>=1024&&i<u.length-1){b/=1024;i++;}
+  return b.toFixed(1)+' '+u[i];
+}
+function humanTime(s){
+  if(!isFinite(s)||s<0)return'--';
+  if(s<60)return Math.ceil(s)+'s';
+  const m=Math.floor(s/60),sec=Math.ceil(s%60);
+  return m+'m '+sec+'s';
+}
+
+function fileIcon(n){
+  const e=(n||'').split('.').pop().toLowerCase();
+  if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(e))return'🖼️';
+  if(['mp4','webm','mov','avi','mkv','m4v','flv'].includes(e))return'🎬';
+  if(['mp3','wav','ogg','m4a','aac','flac'].includes(e))return'🎵';
+  if(e==='pdf')return'📕';
+  if(['doc','docx','txt','rtf','odt'].includes(e))return'📄';
+  if(['xls','xlsx','csv','ods'].includes(e))return'📊';
+  if(e==='apk')return'📦';
+  if(['zip','rar','7z','tar','gz'].includes(e))return'🗜️';
+  return'📎';
+}
+
+function addFileRow(name,size){
+  const div=document.createElement('div');
+  div.className='file';
+  div.innerHTML=`
+    <div class="row1">
+      <div class="name"><span class="fi">${fileIcon(name)}</span><span class="nm"></span></div>
+      <div class="pct">0%</div>
+    </div>
+    <div class="size"></div>
+    <div class="bar"><div class="fill"></div></div>
+    <div class="status"><span class="st-txt">Queued…</span><span class="st-speed"></span></div>
+    <button class="retry-btn" type="button">↻ Retry</button>`;
+  div.querySelector('.nm').textContent=name;
+  div.querySelector('.size').textContent=humanSize(size);
+  list.appendChild(div);
+  const ui={
+    setPct:p=>div.querySelector('.pct').textContent=Math.round(p)+'%',
+    setFill:w=>div.querySelector('.fill').style.width=w+'%',
+    setStatus:(s)=>div.querySelector('.st-txt').textContent=s,
+    setSpeed:(sp,eta)=>div.querySelector('.st-speed').textContent=sp+(eta?(' · ETA '+eta):''),
+    setDone:()=>{div.classList.add('done');div.querySelector('.pct').innerHTML='<span class="check"></span>';
+      div.querySelector('.st-speed').textContent='';},
+    setError:(m)=>{div.classList.add('err');div.querySelector('.st-txt').textContent=m;},
+    onRetry:(fn)=>div.querySelector('.retry-btn').onclick=fn,
+  };
+  return ui;
+}
+
+/* Resume: ask server which chunks already exist for this upload_id */
+async function getReceivedChunks(uploadId){
+  try{
+    const r=await fetch('/upload/status',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({upload_id:uploadId})});
+    const j=await r.json();
+    return j.ok?new Set(j.received):new Set();
+  }catch(e){return new Set();}
+}
+
+async function uploadFile(file){
+  const ui=addFileRow(file.name,file.size);
+  const total=Math.max(1,Math.ceil(file.size/CHUNK_SIZE));
+  const uploadId=(crypto.randomUUID?crypto.randomUUID():Date.now()+''+Math.random());
+
+  const run=async()=>{
+    ui.setStatus('Uploading…');
+    // resume support
+    const received=await getReceivedChunks(uploadId);
+    let startIdx=0;
+    if(received.size>0){
+      ui.setStatus('Resuming from chunk '+received.size+'/'+total+'…');
+      startIdx=0; // we still iterate all but skip already-received
+    }
+    const tStart=performance.now();
+    let bytesDone=received.size*CHUNK_SIZE;
+    try{
+      for(let idx=startIdx;idx<total;idx++){
+        if(received.has(idx)){continue;}
+        const start=idx*CHUNK_SIZE;
+        const blob=file.slice(start,start+CHUNK_SIZE);
+        const fd=new FormData();
+        fd.append('upload_id',uploadId);
+        fd.append('filename',file.name);
+        fd.append('chunk_index',idx);
+        fd.append('total_chunks',total);
+        fd.append('chunk',blob,file.name);
+
+        const chunkStart=performance.now();
+        const resp=await fetch('/upload/chunk',{method:'POST',body:fd});
+        if(!resp.ok){throw new Error('chunk '+idx+' failed');}
+        bytesDone+=blob.size;
+        const p=(idx+1)/total*100;
+        ui.setPct(p);ui.setFill(p);
+        // speed + ETA
+        const elapsed=(performance.now()-tStart)/1000;
+        const speed=bytesDone/elapsed;
+        const remaining=(file.size-bytesDone)/speed;
+        let sp=humanSize(speed)+'/s';
+        ui.setSpeed(sp,humanTime(remaining));
+      }
+
+      const done=await fetch('/upload/complete',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({upload_id:uploadId,filename:file.name,total_chunks:total,
+          device:navigator.userAgent.includes('Mobile')?'Mobile':'Browser'})
+      });
+      const j=await done.json();
+      if(j.ok){ui.setPct(100);ui.setFill(100);ui.setDone();ui.setStatus('Sent ✓');}
+      else{ui.setError('Error: '+(j.msg||'unknown'));}
+    }catch(e){
+      ui.setError('Failed: '+e.message+' (tap Retry to resume)');
+      ui.onRetry(run);
+    }
+  };
+  run();
+}
+
+function handleFiles(files){[...files].forEach(f=>uploadFile(f));}
+
+function pickFiles(){input.click();}
+function pickFolder(){folderInput.click();}
+
+dz.addEventListener('click',e=>{if(e.target===dz||e.target.classList.contains('dz-icon')||e.target.classList.contains('dz-text')||e.target.classList.contains('dz-sub')||e.target.tagName==='svg')pickFiles();});
+input.addEventListener('change',e=>{handleFiles(e.target.files);input.value='';});
+folderInput.addEventListener('change',e=>{handleFiles(e.target.files);folderInput.value='';});
+
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{
+  e.preventDefault();e.stopPropagation();dz.classList.add('drag');
+}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{
+  e.preventDefault();e.stopPropagation();dz.classList.remove('drag');
+}));
+dz.addEventListener('drop',e=>{if(e.dataTransfer.files)handleFiles(e.dataTransfer.files);});
+</script>
+</body>
+</html>

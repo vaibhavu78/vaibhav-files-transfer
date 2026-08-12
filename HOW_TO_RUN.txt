@@ -1,0 +1,150 @@
+================================================================
+    VAIBHAV FILES TRANSFER - HOW TO RUN (Asaan Tareeka)
+================================================================
+
+YEH SCRIPT SAB KUCH APNE AAP KAREGA:
+  - Python install (agar nahi hai)
+  - Git install (agar nahi hai)
+  - Libraries install
+  - GitHub pe upload (agar URL doge)
+  - Server + Public URL + QR code
+  - Admin panel browser me kholega
+
+================================================================
+STEP 1: RUN.bat ko DOUBLE-CLICK karo (sabse aasaan)
+================================================================
+
+  1. RUN.bat file ko double-click karo
+  2. Script sab kuch automatic karega:
+     - Python check/install
+     - Git check/install
+     - Libraries install
+     - GitHub pe upload (repo URL puchega - daalo ya ENTER for skip)
+     - Server start + public URL + QR code
+     - Browser me admin panel khulega
+  3. Admin panel password: radha
+  4. QR code print karo -> deewar pe lagao
+
+  (Sirf local chalana ho bina Git ke to START.bat double-click karo.)
+
+================================================================
+STEP 2: QR CODE PRINT KARO
+================================================================
+
+  1. Admin panel me jao (browser me khula hoga)
+  2. Password: radha
+  3. "Scan to Connect" section me QR code dikhega
+  4. "Download QR" button dabao -> qr.png milega
+  5. qr.png print karo -> deewar pe lagao
+  6. Ab koi BHI insaan - kisi BHI network se (mobile data, doosra WiFi)
+     QR scan karega -> file bhejega -> tumhare admin panel me aa jayegi
+
+================================================================
+RENDER.COM PE 24/7 DEPLOY (LAPTOP BAND HO TO BHI CHALE) - FREE
+================================================================
+
+  1. GitHub pe naya repo banao (khali). RUN.bat chalao -> us repo ka URL
+     daalo -> files upload ho jayengi. (Ya manually files push karo.)
+  2. Render.com pe jao -> GitHub se Sign up (free)
+  3. "New +" -> "Web Service" -> apna GitHub repo select karo
+  4. Settings:
+     - Name: vaibhav-files-transfer
+     - Runtime: Python
+     - Build Command: pip install -r requirements.txt
+     - Start Command: python render_start.py
+     - Plan: Free
+  5. "Create Web Service" dabao -> deploy hoga (2-3 min)
+  6. URL milega: https://vaibhav-files-transfer-xxxx.onrender.com
+  7. Environment tab me jao -> "Add Environment Variable":
+     - Key: PERMANENT_DOMAIN
+     - Value: https://vaibhav-files-transfer-xxxx.onrender.com
+       (apna URL daalo, https:// ke saath, trailing slash nahi)
+  8. (Optional) ADMIN_PASSWORD ko radha se badal lo.
+  9. Save Changes -> automatic re-deploy hoga
+  10. Apna URL/admin kholo -> password: radha -> QR download -> print
+
+  BAS! Ab 24/7 chalta rahega. Laptop band ho to bhi.
+
+  NOTE: Render free plan 15 min idle hone pe sleep ho jata hai, aur
+  koi request aane par 30 sec me wapas jag jata hai. Hamesha ON rakhne
+  ke liye admin panel ka tab open rakho (4 sec polling usko jagaye
+  rakhti hai) ya paid plan ($7/month) le lo.
+
+================================================================
+LOCAL MODE - CLOUDFLARE QUICK TUNNEL (BINA ACCOUNT, FREE)
+================================================================
+
+  RUN.bat ya START.bat chalane par:
+   - Server local start hoga
+   - cloudflared automatically download hoga
+   - Public https://*.trycloudflare.com URL milega (no account)
+   - QR us URL pe point karega, browser me admin khulega
+
+  Tunnel URL har restart pe badalta hai. Permanent URL chahiye to:
+   - Render.com pe deploy karo (upar dekho), YA
+   - Free Cloudflare account + Named Tunnel use karo
+
+================================================================
+ADMIN PANEL FEATURES
+================================================================
+
+  - Password: radha (change kar sakte ho - ADMIN_PASSWORD env var)
+  - Logout button (top right)
+  - Inbox: har file ke saath device, OS, browser, IP, time dikhega
+  - View button: image/PDF/video/audio/text preview modal
+  - Print button: image/PDF/text direct print kar sakte ho
+  - Download button: file save kar sakte ho
+  - Save button: file ko custom download folder me copy karo
+  - Delete button: file delete kar sakte ho
+  - QR section: QR download + refresh + copy link + open link
+  - Connected Users tab: device, OS, browser, IP, online/offline, block/unblock
+  - Network settings: custom download folder set kar sakte ho
+  - Search bar: naam / IP / device se search, type filter, sort
+  - Clear History: poora inbox clear kar sakte ho
+
+================================================================
+ERROR AAYE TO?
+================================================================
+
+  1. "Python not found" -> RUN.bat khud install karega, ruko
+  2. "pip install failed" -> internet check karo, ya manually:
+     pip install flask flask-socketio eventlet qrcode pillow requests
+  3. "Port in use" -> START.bat dobara chalao (auto free port dhundega)
+  4. "Tunnel failed" -> local network pe chalega, restart karo
+  5. "Git push failed" -> GitHub login check karo, repo URL sahi daalo
+  6. "Admin locked" -> password radha hai
+  7. "QR purana URL dikhata hai" -> admin me Refresh QR dabao, ya
+     PERMANENT_DOMAIN env var dobara set karo
+
+  Koi dikkat ho to poocho!
+
+================================================================
+WINDOWS EXE BANANA (optional)
+================================================================
+
+  Command prompt me:
+     pip install pyinstaller
+     pyinstaller FileTransfer.spec
+  dist\FileTransfer.exe ban jayega. Double-click karke chalao.
+
+================================================================
+FILES KA DESCRIPTION
+================================================================
+
+  RUN.bat          - ONE CLICK: git + install + run (sab automatic)
+  START.bat        - Local run only (install + server + tunnel)
+  README.md        - Pura documentation (English)
+  SOURCE/          - Main application code
+    app.py         - Backend server (Flask + SocketIO)
+    launcher.py    - Auto tunnel + QR + browser opener
+    templates/     - Web pages (admin.html, index.html)
+    qr_cache/      - QR PNG yahan banti hai
+    received_files/- Aayi hui files yahan save hoti hain
+  render_start.py  - Render.com entry point
+  render.yaml      - Render.com config
+  Procfile         - Render.com start command
+  requirements.txt - Python libraries list
+  runtime.txt      - Python version
+  FileTransfer.spec- PyInstaller spec (EXE banane ke liye)
+
+================================================================

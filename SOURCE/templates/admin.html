@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vaibhav Files Transfer — Admin Control Panel</title>
+<!-- Socket.IO client (try CDN; if offline, the app falls back to polling) -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a;--panel:#1e293b;--panel2:#334155;--text:#e2e8f0;--muted:#94a3b8;
+    --accent:#6366f1;--accent2:#8b5cf6;--ok:#22c55e;--err:#ef4444;--warn:#f59e0b;
+    --glass:rgba(30,41,59,0.65);--glass-border:rgba(255,255,255,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
+  body{
+    background:var(--bg);color:var(--text);min-height:100vh;padding:18px;position:relative;overflow-x:hidden;
+  }
+  /* animated gradient backdrop */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-2;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(99,102,241,0.18), transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(139,92,246,0.18), transparent 45%),
+      linear-gradient(135deg,#0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    background-size:200% 200%;animation:bgshift 18s ease infinite;
+  }
+  @keyframes bgshift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;
+    background:linear-gradient(135deg,#1e1b4b,#312e81);padding:14px 22px;border-radius:14px;
+    margin-bottom:18px;box-shadow:0 8px 30px rgba(0,0,0,.4);position:relative;overflow:hidden}
+  .topbar::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);
+    transform:translateX(-100%);animation:sheen 6s infinite}
+  @keyframes sheen{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
+  .topbar h1{font-size:20px;background:linear-gradient(90deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;
+    background-clip:text;-webkit-text-fill-color:transparent}
+  .status{font-size:12px;color:var(--ok);display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.85)}}
+
+  /* new upload badge */
+  #newBadge{position:fixed;top:18px;right:18px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    color:#fff;padding:8px 16px;border-radius:30px;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(99,102,241,.6);
+    transform:translateY(-80px) scale(.8);opacity:0;transition:all .4s cubic-bezier(.34,1.56,.64,1);z-index:1000;cursor:pointer}
+  #newBadge.show{transform:translateY(0) scale(1);opacity:1;animation:badgePop .5s}
+  @keyframes badgePop{0%{transform:translateY(-80px) scale(.8)}60%{transform:translateY(6px) scale(1.08)}100%{transform:translateY(0) scale(1)}}
+
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:18px;max-width:1400px;margin:0 auto}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+  /* glass card */
+  .card{background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:18px;
+    margin-bottom:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 12px 40px rgba(0,0,0,.35);transition:transform .25s,box-shadow .25s,opacity .4s;
+    opacity:0;transform:translateY(14px)}
+  .card.in{opacity:1;transform:translateY(0)}
+  .card:hover{box-shadow:0 16px 50px rgba(99,102,241,.18)}
+  .card h2{font-size:15px;margin-bottom:14px;color:#cbd5e1;display:flex;align-items:center;gap:8px}
+  .card h2 .ic{width:18px;height:18px;opacity:.8}
+
+  /* QR */
+  .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+  #qrImg{width:240px;height:240px;background:#fff;padding:10px;border-radius:12px;image-rendering:pixelated;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);transition:transform .3s}
+  #qrImg:hover{transform:scale(1.04)}
+  .qr-url{font-family:Consolas,monospace;font-size:12px;color:#a5b4fc;word-break:break-all;text-align:center;
+    background:#0f172a;padding:8px 10px;border-radius:8px;width:100%}
+  .qr-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  .qr-btn{background:linear-gradient(135deg,rgba(99,102,241,.25),rgba(139,92,246,.25));color:#c7d2fe;
+    border:1px solid rgba(99,102,241,.4);padding:9px 10px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;
+    transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px}
+  .qr-btn:hover{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;transform:translateY(-2px);box-shadow:0 6px 18px rgba(99,102,241,.4)}
+  .qr-btn:active{transform:translateY(0)}
+  .perm-tag{font-size:10px;color:var(--ok);background:rgba(34,197,94,.12);padding:3px 10px;border-radius:20px;
+    border:1px solid rgba(34,197,94,.3);display:inline-flex;align-items:center;gap:4px}
+
+  /* config form */
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .field input{width:100%;padding:9px 11px;background:rgba(15,23,42,.7);border:1px solid #475569;border-radius:8px;
+    color:var(--text);font-size:13px;transition:border-color .2s}
+  .field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
+  .row2{display:flex;gap:10px}
+  .row2 .field{flex:1}
+  .save-btn{width:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border:none;
+    padding:11px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;margin-top:6px;transition:all .2s}
+  .save-btn:hover{filter:brightness(1.12);transform:translateY(-2px);box-shadow:0 8px 22px rgba(99,102,241,.4)}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;text-align:center;
+    transition:transform .2s}
+  .stat:hover{transform:translateY(-3px)}
+  .stat .v{font-size:24px;font-weight:700;color:#a5b4fc}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:2px}
+
+  /* tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .tab{padding:9px 16px;background:var(--panel2);border:none;color:var(--muted);border-radius:10px;
+    cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+  .tab:hover{color:var(--text)}
+  .tab.active{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.4)}
+
+  /* search bar */
+  .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .toolbar input,.toolbar select{background:rgba(15,23,42,.7);border:1px solid #475569;color:var(--text);
+    padding:9px 11px;border-radius:9px;font-size:13px}
+  .toolbar input{flex:1;min-width:160px}
+  .toolbar input:focus,.toolbar select:focus{outline:none;border-color:var(--accent)}
+  .toolbar .cnt{font-size:12px;color:var(--muted)}
+
+  /* file rows */
+  .file-row{display:flex;align-items:center;gap:12px;background:rgba(15,23,42,.6);border:1px solid rgba(51,65,85,.6);
+    border-radius:12px;padding:12px;margin-bottom:10px;transition:all .25s;animation:rowIn .4s ease}
+  @keyframes rowIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+  .file-row:hover{border-color:var(--accent);transform:translateX(3px)}
+  .file-row.new{animation:newFile .9s ease}
+  @keyframes newFile{0%{background:rgba(34,197,94,.25);transform:scale(1.02)}100%{background:rgba(15,23,42,.6);transform:scale(1)}}
+  .file-row .info{flex:1;min-width:0}
+  .file-row .info .nm{font-size:14px;font-weight:600;word-break:break-all}
+  .file-row .info .meta{font-size:11px;color:var(--muted);margin-top:3px}
+  .file-row .actions{display:flex;flex-direction:column;gap:5px}
+  .act-btn{padding:7px 12px;border:none;border-radius:8px;cursor:pointer;font-size:12px;color:#fff;min-width:78px;
+    transition:all .15s;text-align:center;text-decoration:none}
+  .act-btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+  .act-save{background:var(--ok)}
+  .act-prev{background:#6366f1}
+  .act-del{background:var(--err)}
+  .act-print{background:#0891b2}
+  .empty{text-align:center;color:var(--muted);padding:40px;font-size:14px}
+
+  /* connected users */
+  .user-row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+    background:rgba(15,23,42,.6);border:1px solid rgba(51,65,85,.6);border-radius:12px;padding:12px;margin-bottom:8px;transition:all .2s}
+  .user-row:hover{border-color:var(--accent)}
+  .user-ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .user-info .uname{font-size:13px;font-weight:600}
+  .user-info .udetail{font-size:11px;color:var(--muted);margin-top:2px}
+  .status-pill{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px}
+  .pill-online{background:rgba(34,197,94,.18);color:#4ade80;border:1px solid rgba(34,197,94,.35)}
+  .pill-offline{background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3)}
+  .blocked-tag{background:var(--err);padding:2px 8px;border-radius:6px;font-size:10px;margin-left:8px}
+
+  /* toast */
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;
+    border:1px solid var(--accent);color:#fff;padding:12px 22px;border-radius:12px;font-size:13px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);opacity:0;transition:all .3s;z-index:999;pointer-events:none}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* notification flash overlay */
+  #notifyFlash{position:fixed;inset:0;background:radial-gradient(circle at 50% 0,rgba(34,197,94,.25),transparent 60%);
+    pointer-events:none;opacity:0;transition:opacity .6s;z-index:998}
+  #notifyFlash.show{opacity:1;animation:flashOut 1.2s ease}
+  @keyframes flashOut{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+
+  /* preview modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:1100;padding:20px}
+  .modal.show{display:flex;animation:modalIn .25s ease}
+  @keyframes modalIn{from{opacity:0}to{opacity:1}}
+  .modal-content{background:var(--panel);border:1px solid #475569;border-radius:16px;max-width:900px;width:100%;
+    max-height:92vh;overflow:auto;padding:18px;position:relative;animation:modalScale .3s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes modalScale{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal-close{position:absolute;top:12px;right:14px;background:var(--err);color:#fff;border:none;width:34px;height:34px;
+    border-radius:50%;cursor:pointer;font-size:18px;font-weight:700}
+  .modal-title{font-size:15px;color:#cbd5e1;margin-bottom:12px;word-break:break-all;padding-right:40px}
+  .preview-box{display:flex;align-items:center;justify-content:center;min-height:200px}
+  .preview-box img,.preview-box video,.preview-box audio{max-width:100%;max-height:70vh;border-radius:10px}
+  .preview-box iframe{width:100%;height:70vh;border:none;border-radius:10px;background:#fff}
+  .preview-box .text-prev{background:#0f172a;color:#e2e8f0;padding:16px;border-radius:10px;white-space:pre-wrap;
+    font-family:Consolas,monospace;font-size:12px;max-height:60vh;overflow:auto;width:100%}
+  .preview-box .unsupported{color:var(--muted);text-align:center;padding:40px}
+  .preview-download{margin-top:14px;text-align:center}
+  .preview-download a{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;padding:10px 22px;
+    border-radius:10px;text-decoration:none;font-weight:600;display:inline-block}
+
+  /* upload progress (active uploads from senders) */
+  .active-up{background:rgba(15,23,42,.6);border:1px solid rgba(99,102,241,.4);border-radius:10px;padding:10px;margin-bottom:8px}
+  .active-up .au-row{display:flex;justify-content:space-between;font-size:12px}
+  .active-up .au-bar{margin-top:6px;height:6px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden}
+  .active-up .au-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>⚡ Vaibhav Files Transfer</h1>
+  <div class="status"><span class="dot"></span><span id="srvStatus">Server running</span>
+    <a href="/admin/logout" style="margin-left:14px;color:#f87171;font-size:13px;text-decoration:none;font-weight:600">⏻ Logout</a>
+  </div>
+</div>
+
+<div id="notifyFlash"></div>
+<div id="newBadge" onclick="goInbox()">🔔 New file received!</div>
+<div id="toast"></div>
+
+<div class="grid">
+  <!-- LEFT COLUMN -->
+  <div>
+    <div class="card">
+      <h2>📱 Scan to Connect</h2>
+      <div class="qr-wrap">
+        <img id="qrImg" src="/admin/qr.png?t=0" alt="QR" />
+        <div id="permTag" class="perm-tag" style="display:none">🔒 Permanent QR — works from any network</div>
+        <div class="qr-url" id="qrUrl">loading…</div>
+        <div class="qr-btns">
+          <button class="qr-btn" onclick="downloadQR()">⬇ Download QR</button>
+          <button class="qr-btn" onclick="copyLink()">🔗 Copy Link</button>
+          <button class="qr-btn" onclick="refreshQR()">🔄 Refresh QR</button>
+          <button class="qr-btn" onclick="openLink()">🌐 Open Link</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📤 Active Uploads</h2>
+      <div id="activeUploads"><div class="empty">No active uploads.</div></div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Network Configuration</h2>
+      <div class="field"><label>Static IP Address</label><input id="cfgIp" /></div>
+      <div class="row2">
+        <div class="field"><label>Port</label><input id="cfgPort" /></div>
+        <div class="field"><label>Auto-detect IP</label><input id="cfgAuto" type="checkbox" /></div>
+      </div>
+      <div class="field"><label>Custom Download Directory (auto-save)</label><input id="cfgDir" /></div>
+      <button class="save-btn" onclick="saveConfig()">💾 Save Configuration</button>
+      <div style="font-size:11px;color:var(--warn);margin-top:8px">⚠ Restart app to apply new IP/Port (local mode only).</div>
+    </div>
+
+    <div class="card">
+      <h2>📊 Statistics</h2>
+      <div class="stat-grid">
+        <div class="stat"><div class="v" id="stFiles">0</div><div class="l">Files Received</div></div>
+        <div class="stat"><div class="v" id="stClients">0</div><div class="l">Online Now</div></div>
+        <div class="stat"><div class="v" id="stBlocked">0</div><div class="l">Blocked IPs</div></div>
+        <div class="stat"><div class="v" id="stPort">8080</div><div class="l">Port</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="card" style="min-height:560px">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('inbox',this)">📥 File Inbox</button>
+      <button class="tab" onclick="switchTab('users',this)">👥 Connected Users</button>
+    </div>
+
+    <div id="tab-inbox">
+      <div class="toolbar">
+        <input id="searchBox" placeholder="🔍 Search name, IP, device…" oninput="runSearch()" />
+        <select id="filterType" onchange="runSearch()">
+          <option value="all">All types</option>
+          <option value="image">Images</option>
+          <option value="video">Videos</option>
+          <option value="audio">Audio</option>
+          <option value="pdf">PDF</option>
+          <option value="doc">Documents</option>
+          <option value="excel">Excel/CSV</option>
+          <option value="apk">APK</option>
+          <option value="archive">Archives</option>
+        </select>
+        <select id="sortBy" onchange="runSearch()">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="largest">Largest</option>
+          <option value="smallest">Smallest</option>
+          <option value="name">Name A-Z</option>
+        </select>
+        <span class="cnt" id="resultCount"></span>
+      </div>
+      <div id="inboxList"><div class="empty">No files received yet.<br>Open the QR URL on your phone to send files.</div></div>
+    </div>
+
+    <div id="tab-users" style="display:none">
+      <div id="usersList"><div class="empty">No connected users.</div></div>
+      <h2 style="margin-top:18px">🚫 Blocked IPs</h2>
+      <div id="blockedList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal" id="prevModal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closePreview()">×</button>
+    <div class="modal-title" id="prevTitle"></div>
+    <div class="preview-box" id="prevBox"></div>
+    <div class="preview-download" id="prevDownload"></div>
+  </div>
+</div>
+
+<!-- Hidden notification sound (WebAudio beep, no external file needed) -->
+<script>
+/* =========================================================
+   Notification sound via WebAudio API (no external assets)
+   ========================================================= */
+let _actx=null;
+function beep(){
+  try{
+    _actx=_actx||new (window.AudioContext||window.webkitAudioContext)();
+    const t=_actx.currentTime;
+    // two-tone chime
+    [880,1320].forEach((f,i)=>{
+      const o=_actx.createOscillator(),g=_actx.createGain();
+      o.type='sine';o.frequency.value=f;
+      o.connect(g);g.connect(_actx.destination);
+      g.gain.setValueAtTime(0,t+i*0.13);
+      g.gain.linearRampToValueAtTime(0.25,t+i*0.13+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t+i*0.13+0.35);
+      o.start(t+i*0.13);o.stop(t+i*0.13+0.36);
+    });
+  }catch(e){}
+}
+function unblockAudio(){try{_actx=_actx||new (window.AudioContext||window.webkitAudioContext)();_actx.resume();}catch(e){}}
+</script>
+
+<script>
+/* =========================================================
+   Socket.IO real-time connection
+   ========================================================= */
+const QS=window.location.search.includes('transport=')?'':'';
+let socket=null;
+try{
+  socket=io({transports:['websocket','polling'],reconnection:true,reconnectionDelay:800});
+  socket.on('connect',()=>{console.log('ws connected');});
+  socket.on('new_file',(d)=>onNewFile(d));
+  socket.on('upload_progress',(d)=>onUploadProgress(d));
+}catch(e){console.warn('socket.io unavailable, polling fallback',e);}
+
+function onUploadProgress(d){
+  const wrap=document.getElementById('activeUploads');
+  let el=document.getElementById('au-'+d.upload_id);
+  if(!el){
+    el=document.createElement('div');el.className='active-up';el.id='au-'+d.upload_id;
+    el.innerHTML=`<div class="au-row"><span class="au-n"></span><span class="au-p"></span></div>
+      <div class="au-bar"><div class="au-fill"></div></div>`;
+    wrap.prepend(el);
+    wrap.querySelector('.empty')&&wrap.querySelector('.empty').remove();
+  }
+  el.querySelector('.au-n').textContent=d.filename+' · '+d.ip;
+  el.querySelector('.au-p').textContent=d.pct+'%';
+  el.querySelector('.au-fill').style.width=d.pct+'%';
+  if(d.pct>=100){setTimeout(()=>{el.remove();if(!wrap.querySelector('.active-up'))wrap.innerHTML='<div class="empty">No active uploads.</div>';},1200);}
+}
+
+let _newCount=0;
+function onNewFile(d){
+  beep();
+  // flash overlay
+  const fl=document.getElementById('notifyFlash');fl.classList.remove('show');void fl.offsetWidth;fl.classList.add('show');
+  // badge
+  _newCount++;
+  const b=document.getElementById('newBadge');
+  b.textContent='🔔 '+_newCount+' new file'+(_newCount>1?'s':'')+' received!';
+  b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
+  // refresh inbox immediately + mark newest
+  refreshInbox(true);
+  refreshStatus();
+}
+function goInbox(){_newCount=0;document.getElementById('newBadge').classList.remove('show');
+  switchTab('inbox',document.querySelectorAll('.tab')[0]);}
+
+/* =========================================================
+   Helpers
+   ========================================================= */
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+async function api(path,opts){const r=await fetch(path,opts);return r.json();}
+
+function ext(n){return (n||'').split('.').pop().toLowerCase();}
+function fileIcon(n){const e=ext(n);
+  if(['jpg','jpeg','png','gif','webp','bmp','svg','tif','tiff'].includes(e))return'🖼️';
+  if(['mp4','webm','mov','avi','mkv','m4v','flv'].includes(e))return'🎬';
+  if(['mp3','wav','ogg','m4a','aac','flac'].includes(e))return'🎵';
+  if(e==='pdf')return'📕';
+  if(['doc','docx','txt','rtf','odt'].includes(e))return'📄';
+  if(['xls','xlsx','csv','ods'].includes(e))return'📊';
+  if(e==='apk')return'📦';
+  if(['zip','rar','7z','tar','gz'].includes(e))return'🗜️';
+  return'📎';
+}
+
+/* =========================================================
+   Status + QR
+   ========================================================= */
+async function refreshStatus(){
+  try{
+    const s=await api('/admin/status');
+    document.getElementById('srvStatus').textContent=s.deployed?('Live: '+s.qr_url):('Server: '+s.ip+':'+s.port);
+    document.getElementById('stFiles').textContent=s.inbox_count;
+    document.getElementById('stBlocked').textContent=s.blocked_count;
+    document.getElementById('stPort').textContent=s.port;
+    document.getElementById('qrUrl').textContent=s.qr_url;
+    document.getElementById('stClients').textContent=s.online_clients;
+    document.getElementById('permTag').style.display=s.permanent?'inline-flex':'none';
+    document.getElementById('qrImg').src='/admin/qr.png?t='+Date.now();
+  }catch(e){}
+}
+
+async function loadConfig(){
+  try{
+    const c=await api('/admin/config');
+    document.getElementById('cfgIp').value=c.host_ip||'';
+    document.getElementById('cfgPort').value=c.port||8080;
+    document.getElementById('cfgAuto').checked=!!c.auto_detect_ip;
+    document.getElementById('cfgDir').value=c.custom_download_dir||'';
+  }catch(e){}
+}
+async function saveConfig(){
+  const payload={host_ip:document.getElementById('cfgIp').value.trim(),
+    port:parseInt(document.getElementById('cfgPort').value)||8080,
+    auto_detect_ip:document.getElementById('cfgAuto').checked,
+    custom_download_dir:document.getElementById('cfgDir').value.trim()};
+  const r=await api('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  toast(r.ok?'Saved! Restart to apply IP/Port.':(r.msg||'Save failed'));
+  refreshStatus();
+}
+
+/* QR actions */
+function downloadQR(){window.location.href='/admin/qr/download';}
+async function copyLink(){try{
+  const r=await api('/admin/link');
+  await navigator.clipboard.writeText(r.link);
+  toast('Link copied: '+r.link);
+}catch(e){const t=document.getElementById('qrUrl').textContent;navigator.clipboard.writeText(t);toast('Link copied');}}
+async function refreshQR(){const r=await api('/admin/qr/refresh',{method:'POST',headers:{'Content-Type':'application/json'}});toast('QR refreshed');refreshStatus();}
+function openLink(){const u=document.getElementById('qrUrl').textContent;window.open(u,'_blank');}
+
+/* =========================================================
+   Tabs
+   ========================================================= */
+function switchTab(name,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-inbox').style.display=name==='inbox'?'block':'none';
+  document.getElementById('tab-users').style.display=name==='users'?'block':'none';
+  if(name==='users')refreshClients();
+}
+
+/* =========================================================
+   Inbox + search/filter/sort
+   ========================================================= */
+let _fullInbox=[];
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function refreshInbox(markNew){
+  try{
+    _fullInbox=await api('/admin/inbox');
+    runSearch(markNew);
+  }catch(e){}
+}
+
+function runSearch(markNew){
+  const q=(document.getElementById('searchBox').value||'').toLowerCase().trim();
+  const ft=document.getElementById('filterType').value;
+  const sb=document.getElementById('sortBy').value;
+  let list=_fullInbox.slice();
+  if(q)list=list.filter(f=>(f.name||'').toLowerCase().includes(q)||(f.sender_ip||'').toLowerCase().includes(q)||(f.device||'').toLowerCase().includes(q));
+  if(ft!=='all'){
+    const cats={image:['jpg','jpeg','png','gif','webp','bmp','svg','tif','tiff'],video:['mp4','webm','mov','avi','mkv','m4v','flv'],audio:['mp3','wav','ogg','m4a','aac','flac'],pdf:['pdf'],doc:['doc','docx','txt','rtf','odt'],excel:['xls','xlsx','csv','ods'],apk:['apk'],archive:['zip','rar','7z','tar','gz']};
+    const set=new Set(cats[ft]||[]);
+    list=list.filter(f=>set.has(ext(f.name)));
+  }
+  if(sb==='oldest')list.sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+  else if(sb==='largest')list.sort((a,b)=>(b.size||0)-(a.size||0));
+  else if(sb==='smallest')list.sort((a,b)=>(a.size||0)-(b.size||0));
+  else if(sb==='name')list.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else list.sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+
+  document.getElementById('resultCount').textContent=list.length+' file'+(list.length!==1?'s':'');
+  const el=document.getElementById('inboxList');
+  if(!list.length){el.innerHTML='<div class="empty">No files match.</div>';return;}
+  el.innerHTML=list.map((f,i)=>`
+    <div class="file-row ${markNew&&i===0&&sb==='newest'?'new':''}" data-sn="${f.stored_name}">
+      <div style="font-size:22px">${fileIcon(f.name)}</div>
+      <div class="info">
+        <div class="nm">${escapeHtml(f.name)}</div>
+        <div class="meta">${f.size_human} • ${f.time} • From ${escapeHtml(f.sender_ip)} (${escapeHtml(f.device||f.browser||'')})</div>
+        <div class="sender-detail" style="font-size:11px;color:#7dd3fc;margin-top:3px;line-height:1.5">
+          📱 Device: ${escapeHtml(f.device||'—')} &nbsp; 💻 OS: ${escapeHtml(f.os||'—')} &nbsp; 🌐 Browser: ${escapeHtml(f.browser||'—')} &nbsp; 🌍 IP: ${escapeHtml(f.sender_ip||'—')} &nbsp; 🕐 ${escapeHtml(f.time||'—')}
+        </div>
+        ${f.auto_saved_to?'<div style="font-size:10px;color:#4ade80;margin-top:2px">✓ Auto-saved to download folder</div>':''}
+      </div>
+      <div class="actions">
+        <button class="act-btn act-prev" onclick="doPreview('${f.stored_name}','${escapeHtml(f.name).replace(/'/g,"\\'")}')">👁 View</button>
+        <button class="act-btn act-print" onclick="doPrint('${f.stored_name}','${escapeHtml(f.name).replace(/'/g,"\\'")}')">🖨 Print</button>
+        <a class="act-btn act-save" href="/admin/file/${f.stored_name}" download>⬇ Download</a>
+        <button class="act-btn act-save" onclick="doSave('${f.stored_name}')">💾 Save</button>
+        <button class="act-btn act-del" onclick="doDelete('${f.stored_name}')">🗑 Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+async function doSave(s){
+  const dir=document.getElementById('cfgDir').value.trim();
+  if(!dir){toast('Set a download directory in Network Configuration first.');return;}
+  const r=await api('/admin/save_to',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stored_name:s,dest_dir:dir})});
+  toast(r.ok?('Saved to '+r.saved_to):('Save failed: '+(r.msg||'')));
+}
+async function doDelete(s){if(!confirm('Delete this file permanently?'))return;
+  await api('/admin/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stored_name:s})});
+  refreshInbox();refreshStatus();toast('Deleted');}
+
+/* =========================================================
+   Print a file (images, PDF, text)
+   ========================================================= */
+function doPrint(storedName,displayName){
+  const e=ext(displayName);
+  const fileUrl='/admin/preview/'+storedName;
+  const w=window.open('','_blank','width=900,height=700');
+  if(!w){toast('Popup blocked — allow popups to print');return;}
+  const title='Vaibhav Files Transfer — Print: '+escapeHtml(displayName);
+  if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(e)){
+    /* Print an image */
+    w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    <style>*{margin:0;padding:0}body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}
+    img{max-width:100%;max-height:100vh;object-fit:contain}
+    @media print{body{print-color-adjust:exact}}</style></head>
+    <body><img src="${fileUrl}" onload="window.focus();window.print()"/></body></html>`);
+    w.document.close();
+  }else if(e==='pdf'){
+    /* Print a PDF — embed in iframe and trigger print */
+    w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    <style>*{margin:0;padding:0}html,body{height:100%}iframe{width:100%;height:100%;border:0}</style></head>
+    <body><iframe src="${fileUrl}" onload="this.contentWindow.focus();this.contentWindow.print()"></iframe></body></html>`);
+    w.document.close();
+  }else if(['txt','log','csv','ini','cfg','json','xml','md','py','js','html','css'].includes(e)){
+    /* Print text content */
+    fetch(fileUrl).then(r=>r.text()).then(txt=>{
+      w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+      <style>body{font-family:monospace;font-size:12px;white-space:pre-wrap;padding:20px;color:#000;background:#fff}</style></head>
+      <body onload="window.focus();window.print()">${escapeHtml(txt)}</body></html>`);
+      w.document.close();
+    }).catch(()=>{w.document.write('<p>Cannot load file for printing.</p>');w.document.close();});
+  }else{
+    /* For unsupported types — open the file URL directly (browser print dialog) */
+    w.location.href=fileUrl;
+  }
+}
+
+/* =========================================================
+   Preview modal (images, pdf, text, video, audio)
+   ========================================================= */
+function closePreview(){document.getElementById('prevModal').classList.remove('show');document.getElementById('prevBox').innerHTML='';}
+document.getElementById('prevModal').addEventListener('click',e=>{if(e.target.id==='prevModal')closePreview();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePreview();});
+
+async function doPreview(storedName,displayName){
+  const e=ext(displayName);
+  const box=document.getElementById('prevBox');
+  const dl=document.getElementById('prevDownload');
+  document.getElementById('prevTitle').textContent=fileIcon(displayName)+' '+displayName;
+  dl.innerHTML='<a href="/admin/file/'+storedName+'" download>⬇ Download this file</a>';
+  const url='/admin/preview/'+storedName;
+  if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(e)){
+    box.innerHTML='<img src="'+url+'" alt="'+escapeHtml(displayName)+'"/>';
+  }else if(['mp4','webm','mov','m4v','ogg'].includes(e)){
+    box.innerHTML='<video src="'+url+'" controls></video>';
+  }else if(['mp3','wav','m4a','aac','flac'].includes(e)){
+    box.innerHTML='<audio src="'+url+'" controls></audio>';
+  }else if(e==='pdf'){
+    box.innerHTML='<iframe src="'+url+'"></iframe>';
+  }else if(['txt','log','csv','ini','cfg','json','xml','md','py','js','html','css'].includes(e)){
+    try{const r=await fetch(url);const txt=await r.text();
+      box.innerHTML='<div class="text-prev">'+escapeHtml(txt.slice(0,50000))+(txt.length>50000?'\n… (truncated)':'')+'</div>';
+    }catch(err){box.innerHTML='<div class="unsupported">Cannot read text.</div>';}
+  }else{
+    box.innerHTML='<div class="unsupported">📄 No inline preview for this format.<br>Use Download to open it.</div>';
+  }
+  document.getElementById('prevModal').classList.add('show');
+}
+
+/* =========================================================
+   Connected Users + Blocked
+   ========================================================= */
+function osIcon(os){if(os.includes('Android'))return'🤖';if(os.includes('iOS')||os.includes('iPad'))return'🍎';if(os.includes('Windows'))return'🪟';if(os.includes('mac'))return'💻';if(os.includes('Linux'))return'🐧';return'🖥️';}
+async function refreshClients(){
+  try{
+    const d=await api('/admin/clients');
+    document.getElementById('stClients').textContent=d.clients.filter(c=>c.online).length;
+    const el=document.getElementById('usersList');
+    if(!d.clients.length){el.innerHTML='<div class="empty">No connected users.</div>';}
+    else{
+      el.innerHTML=d.clients.map(c=>`
+        <div class="user-row">
+          <div class="user-ic">${osIcon(c.os)}</div>
+          <div class="user-info">
+            <div class="uname">${escapeHtml(c.platform)} · ${escapeHtml(c.os)} · ${escapeHtml(c.browser)}</div>
+            <div class="udetail">IP: ${escapeHtml(c.ip)} • Model: ${escapeHtml(c.model)} • Connected: ${c.connect_time} • Last seen: ${c.last_seen} • Idle: ${c.idle_sec}s</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <span class="status-pill ${c.online?'pill-online':'pill-offline'}">${c.status}</span>
+            <button class="act-btn act-del" onclick="blockIp('${c.ip}')">🚫 Block</button>
+          </div>
+        </div>`).join('');
+    }
+    const bl=document.getElementById('blockedList');
+    if(!d.blocked.length){bl.innerHTML='<div class="empty">No blocked IPs.</div>';}
+    else{bl.innerHTML=d.blocked.map(ip=>`
+      <div class="user-row">
+        <div class="user-ic">🚫</div>
+        <div class="user-info"><div class="uname">${escapeHtml(ip)} <span class="blocked-tag">BLOCKED</span></div></div>
+        <button class="act-btn act-save" onclick="unblockIp('${ip}')">✓ Unblock</button>
+      </div>`).join('');}
+  }catch(e){}
+}
+async function blockIp(ip){await api('/admin/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});refreshClients();refreshStatus();toast('Blocked '+ip);}
+async function unblockIp(ip){await api('/admin/unblock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});refreshClients();refreshStatus();toast('Unblocked '+ip);}
+
+/* =========================================================
+   Init + poll loop
+   ========================================================= */
+document.addEventListener('click',unblockAudio,{once:true});
+function revealCards(){document.querySelectorAll('.card').forEach((c,i)=>setTimeout(()=>c.classList.add('in'),i*80));}
+
+refreshStatus();loadConfig();refreshInbox();refreshClients();revealCards();
+setInterval(()=>{refreshStatus();refreshInbox();refreshClients();},4000);
+</script>
+</body>
+</html>

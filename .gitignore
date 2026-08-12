@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+
+# PyInstaller
+*.spec.bak
+build_temp/
+
+# Virtual envs
+venv/
+env/
+.venv/
+ENV/
+
+# Runtime data (created by the app at runtime — never commit)
+received_files/*
+!received_files/.gitkeep
+received_files/.chunks/
+downloads/*
+qr_cache/*.png
+qr_cache/*.png.url
+inbox_meta.json
+inbox.json
+blocked_clients.json
+server_config.json
+connected_devices.json
+upload_sessions.json
+.installed
+
+# Cloudflared binary (downloaded by launcher at runtime)
+.cloudflared/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
